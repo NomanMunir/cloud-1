@@ -1,0 +1,33 @@
+# Ansible
+*.retry
+.vault_pass
+.vault_password
+*.pem
+*.key
+!**/templates/*.key.j2
+
+# Secrets
+group_vars/all/vault.yml.unencrypted
+inventory/hosts.local.yml
+.env
+.env.local
+secrets/
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Python cache (ansible)
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# Multipass / local VM state
+.multipass/
+
+# Don't commit subject PDF? — keep it for now since school workflow expects repo to be self-contained

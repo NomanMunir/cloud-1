@@ -1,0 +1,64 @@
+---
+# Subject rule: only 22, 80, 443 reachable from outside.
+# Critical: Docker manipulates iptables directly and bypasses ufw.
+# Mitigation: lock down docker bridge via DOCKER-USER chain (applied before docker rules).
+
+- name: Set ufw default deny incoming
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: Set ufw default allow outgoing
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Allow SSH (22/tcp)
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Allow HTTP (80/tcp)
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Allow HTTPS (443/tcp)
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+
+- name: Enable ufw + log
+  community.general.ufw:
+    state: enabled
+    logging: low
+
+- name: Install iptables-persistent for DOCKER-USER chain
+  ansible.builtin.apt:
+    name:
+      - iptables-persistent
+      - netfilter-persistent
+    state: present
+
+- name: Deploy DOCKER-USER chain hardening script
+  ansible.builtin.template:
+    src: docker-user-hardening.sh.j2
+    dest: /usr/local/sbin/docker-user-hardening.sh
+    owner: root
+    group: root
+    mode: "0755"
+  notify: apply DOCKER-USER rules
+
+- name: Deploy systemd unit to apply rules after Docker starts
+  ansible.builtin.template:
+    src: docker-user-hardening.service.j2
+    dest: /etc/systemd/system/docker-user-hardening.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - systemd daemon-reload
+    - enable docker-user-hardening

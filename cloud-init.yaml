@@ -1,0 +1,23 @@
+#cloud-config
+# Cloud-init for local Multipass test VM. Sets up the same baseline
+# the subject expects from a "fresh Ubuntu 22.04 + SSH + Python" host.
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      # Ansible host's public key — Makefile target will inject if empty.
+      # Replace with: cat ~/.ssh/id_ed25519.pub
+      - REPLACE_WITH_YOUR_SSH_PUBLIC_KEY
+
+package_update: true
+package_upgrade: false
+packages:
+  - python3
+  - openssh-server
+
+ssh_pwauth: false
+disable_root: false
+
+runcmd:
+  - systemctl enable --now ssh

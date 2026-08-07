@@ -1,0 +1,12 @@
+---
+# Copy to vault.yml and encrypt:
+#   cp vault.yml.example vault.yml
+#   ansible-vault encrypt vault.yml
+# Edit later with:
+#   ansible-vault edit vault.yml
+
+vault_db_password: "CHANGE_ME_strong_random_string"
+vault_db_root_password: "CHANGE_ME_strong_random_string"
+vault_wp_admin_password: "CHANGE_ME_strong_random_string"
+vault_wp_user_password: "CHANGE_ME_strong_random_string"
+vault_duckdns_token: "CHANGE_ME_duckdns_token_uuid"

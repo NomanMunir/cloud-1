@@ -1,0 +1,12 @@
+[Unit]
+Description=Cloud-1 DOCKER-USER iptables hardening
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/docker-user-hardening.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

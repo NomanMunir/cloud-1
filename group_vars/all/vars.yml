@@ -1,0 +1,44 @@
+---
+# Site identity
+site_domain: "{{ duckdns_subdomain }}.duckdns.org"
+admin_email: "mehsan@g137.io"
+
+# DuckDNS (set duckdns_subdomain and vault_duckdns_token)
+duckdns_subdomain: "cloud1-mkhan"
+duckdns_token: "{{ vault_duckdns_token }}"
+
+# TLS mode: letsencrypt | selfsigned
+tls_mode: "letsencrypt"
+
+# Application paths on host
+app_dir: /opt/inception
+data_dir: /srv/inception
+
+# Docker images (pinned for reproducibility)
+image_nginx: "nginx:1.27-alpine"
+image_wordpress: "wordpress:6.6-php8.2-fpm-alpine"
+image_mariadb: "mariadb:10.11"
+image_phpmyadmin: "phpmyadmin:5.2-apache"
+
+# Docker networks
+net_frontend: inception_frontend
+net_backend: inception_backend
+
+# Database
+db_name: wordpress
+db_user: wp_user
+db_password: "{{ vault_db_password }}"
+db_root_password: "{{ vault_db_root_password }}"
+
+# WordPress
+wp_url: "https://{{ site_domain }}"
+wp_title: "Cloud-1"
+wp_admin_user: "supervisor"
+wp_admin_password: "{{ vault_wp_admin_password }}"
+wp_admin_email: "{{ admin_email }}"
+wp_user_user: "editor"
+wp_user_password: "{{ vault_wp_user_password }}"
+wp_user_email: "editor@{{ site_domain }}"
+
+# phpMyAdmin path (URL routing rule: /phpmyadmin under main domain)
+pma_path: "/phpmyadmin"

@@ -1,0 +1,21 @@
+---
+- name: Cloud-1 — automated Inception deployment
+  hosts: wordpress
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Wait for SSH/cloud-init to finish
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+    - name: Ensure apt cache is current
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - common
+    - firewall
+    - docker
+    - tls
+    - app

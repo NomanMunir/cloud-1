@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Cloud-1 — DOCKER-USER chain hardening
+# Docker bypasses ufw by inserting its own iptables rules. To keep the
+# subject's "only 22/80/443 reachable" promise true even when a container
+# binds 0.0.0.0:<port>, we filter the FORWARD path Docker uses.
+#
+# Strategy: in DOCKER-USER, allow established/related + allow 80/443 from
+# anywhere, then drop everything else destined to docker bridges.
+
+set -euo pipefail
+
+CHAIN="DOCKER-USER"
+
+# Make sure chain exists (Docker creates it on start, but be safe)
+iptables -L "$CHAIN" -n >/dev/null 2>&1 || iptables -N "$CHAIN"
+
+# Flush old rules
+iptables -F "$CHAIN"
+
+# Established/related first
+iptables -A "$CHAIN" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# Allow inbound HTTP/HTTPS to any container
+iptables -A "$CHAIN" -p tcp --dport 80 -j ACCEPT
+iptables -A "$CHAIN" -p tcp --dport 443 -j ACCEPT
+
+# Allow internal docker network traffic (container <-> container)
+iptables -A "$CHAIN" -i docker0 -j ACCEPT
+iptables -A "$CHAIN" -s 172.16.0.0/12 -j ACCEPT
+
+# Drop everything else hitting containers from outside
+iptables -A "$CHAIN" -j DROP
+
+# Persist
+netfilter-persistent save >/dev/null

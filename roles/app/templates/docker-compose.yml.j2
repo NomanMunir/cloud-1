@@ -1,0 +1,104 @@
+---
+# Cloud-1 — rendered by Ansible. Do not edit on the host.
+# Subject rules satisfied:
+#   - 1 process = 1 container (4 services)
+#   - restart: unless-stopped (auto-restart on reboot)
+#   - named volumes (data persists)
+#   - mariadb on backend network only (DB not reachable from internet)
+#   - only nginx exposes ports (80/443)
+
+name: inception
+
+networks:
+  frontend:
+    name: {{ net_frontend }}
+  backend:
+    name: {{ net_backend }}
+    internal: true   # no outbound internet, no host exposure
+
+volumes:
+  db_data:
+    name: inception_db_data
+  wp_data:
+    name: inception_wp_data
+  # certs are a host bind mount (managed by tls role, must exist before stack up)
+
+services:
+  nginx:
+    image: {{ image_nginx }}
+    container_name: inception_nginx
+    restart: unless-stopped
+    depends_on:
+      wordpress:
+        condition: service_started
+      phpmyadmin:
+        condition: service_started
+    networks:
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - {{ app_dir }}/nginx/conf.d:/etc/nginx/conf.d:ro
+      - wp_data:/var/www/html:ro
+      - {{ data_dir }}/certs:/etc/nginx/certs:ro
+
+  wordpress:
+    image: {{ image_wordpress }}
+    container_name: inception_wordpress
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
+    environment:
+      WORDPRESS_DB_HOST: mariadb:3306
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_TABLE_PREFIX: wp_
+      WORDPRESS_CONFIG_EXTRA: |
+        define('FORCE_SSL_ADMIN', true);
+        if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+          $$_SERVER['HTTPS'] = 'on';
+        }
+    volumes:
+      - wp_data:/var/www/html
+
+  mariadb:
+    image: {{ image_mariadb }}
+    container_name: inception_mariadb
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  phpmyadmin:
+    image: {{ image_phpmyadmin }}
+    container_name: inception_phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+      PMA_ABSOLUTE_URI: "{{ wp_url }}{{ pma_path }}/"
+      UPLOAD_LIMIT: 256M

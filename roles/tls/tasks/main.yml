@@ -1,0 +1,108 @@
+---
+- name: Ensure cert output dirs exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ data_dir }}/certs"
+    - "{{ data_dir }}/letsencrypt"
+
+- name: Self-signed branch
+  when: tls_mode == "selfsigned"
+  block:
+    - name: Install openssl
+      ansible.builtin.apt:
+        name: openssl
+        state: present
+
+    - name: Check existing cert
+      ansible.builtin.stat:
+        path: "{{ data_dir }}/certs/fullchain.pem"
+      register: cert_stat
+
+    - name: Generate self-signed cert
+      ansible.builtin.command: >
+        openssl req -x509 -nodes -newkey rsa:2048
+        -keyout {{ data_dir }}/certs/privkey.pem
+        -out    {{ data_dir }}/certs/fullchain.pem
+        -days 365
+        -subj "/CN={{ site_domain }}"
+      when: not cert_stat.stat.exists
+      changed_when: true
+
+    - name: Copy certs into named volume mount via host bind
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0640"
+      loop:
+        - { src: "{{ data_dir }}/certs/fullchain.pem", dest: /var/lib/docker/volumes/inception_certs/_data/fullchain.pem }
+        - { src: "{{ data_dir }}/certs/privkey.pem",   dest: /var/lib/docker/volumes/inception_certs/_data/privkey.pem }
+      when: cert_stat.stat.exists or not cert_stat.stat.exists
+      ignore_errors: true   # named volume may not exist yet on first run; app role will retry
+
+- name: Let's Encrypt branch
+  when: tls_mode == "letsencrypt"
+  block:
+    - name: Install certbot
+      ansible.builtin.apt:
+        name:
+          - certbot
+        state: present
+
+    - name: Update DuckDNS A record (point domain at this host)
+      ansible.builtin.uri:
+        url: >-
+          https://www.duckdns.org/update?domains={{ duckdns_subdomain }}&token={{ duckdns_token }}&ip=
+        return_content: true
+      register: duckdns_resp
+      changed_when: "'OK' in duckdns_resp.content"
+      failed_when: "'OK' not in duckdns_resp.content"
+
+    - name: Run certbot (standalone, port 80) — first issuance
+      ansible.builtin.command: >
+        certbot certonly --standalone --non-interactive --agree-tos
+        -m {{ admin_email }}
+        -d {{ site_domain }}
+        --keep-until-expiring
+      args:
+        creates: "/etc/letsencrypt/live/{{ site_domain }}/fullchain.pem"
+
+    - name: Sync certs to host bind dir
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0640"
+      loop:
+        - { src: "/etc/letsencrypt/live/{{ site_domain }}/fullchain.pem", dest: "{{ data_dir }}/certs/fullchain.pem" }
+        - { src: "/etc/letsencrypt/live/{{ site_domain }}/privkey.pem",   dest: "{{ data_dir }}/certs/privkey.pem" }
+
+    - name: Install renewal hook (reload nginx container after renew)
+      ansible.builtin.copy:
+        dest: /etc/letsencrypt/renewal-hooks/deploy/cloud1-reload-nginx.sh
+        owner: root
+        group: root
+        mode: "0755"
+        content: |
+          #!/usr/bin/env bash
+          set -e
+          cp /etc/letsencrypt/live/{{ site_domain }}/fullchain.pem {{ data_dir }}/certs/fullchain.pem
+          cp /etc/letsencrypt/live/{{ site_domain }}/privkey.pem   {{ data_dir }}/certs/privkey.pem
+          docker exec inception_nginx nginx -s reload || true
+
+- name: Ensure certs available in nginx-mounted volume
+  ansible.builtin.file:
+    path: "{{ data_dir }}/certs"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"

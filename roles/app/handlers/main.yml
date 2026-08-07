@@ -1,0 +1,12 @@
+---
+- name: restart stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    state: present
+    restarted: true
+
+- name: reload nginx
+  community.docker.docker_container_exec:
+    container: inception_nginx
+    command: nginx -s reload
+  failed_when: false

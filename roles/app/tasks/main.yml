@@ -1,0 +1,122 @@
+---
+- name: Create application directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ app_dir }}"
+    - "{{ app_dir }}/nginx"
+    - "{{ app_dir }}/nginx/conf.d"
+    - "{{ data_dir }}"
+    - "{{ data_dir }}/db"
+    - "{{ data_dir }}/wp"
+    - "{{ data_dir }}/certs"
+
+- name: Render docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ app_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0640"
+  notify: restart stack
+
+- name: Render .env file (compose interpolation)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: restart stack
+
+- name: Render nginx default vhost (WP + phpMyAdmin URL routing)
+  ansible.builtin.template:
+    src: nginx/default.conf.j2
+    dest: "{{ app_dir }}/nginx/conf.d/default.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload nginx
+
+- name: Bring up the stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    state: present
+    pull: missing
+    remove_orphans: true
+  register: compose_up
+
+- name: Wait for nginx to respond on HTTPS
+  ansible.builtin.uri:
+    url: "https://127.0.0.1/"
+    headers:
+      Host: "{{ site_domain }}"
+    validate_certs: false
+    status_code: [200, 301, 302]
+    return_content: false
+  register: wp_check
+  retries: 60
+  delay: 5
+  until: wp_check.status in [200, 301, 302]
+
+- name: Wait for php-fpm socket to be ready inside wordpress container
+  community.docker.docker_container_exec:
+    container: inception_wordpress
+    command: sh -c 'until [ -S /var/run/php-fpm.sock ] || nc -z 127.0.0.1 9000; do sleep 1; done; echo ok'
+  changed_when: false
+  failed_when: false
+
+- name: Install wp-cli inside WordPress container (alpine image lacks it)
+  community.docker.docker_container_exec:
+    container: inception_wordpress
+    command: >
+      sh -c '
+        if [ ! -x /usr/local/bin/wp ]; then
+          (command -v curl >/dev/null || apk add --no-cache curl) &&
+          curl -fsSL -o /usr/local/bin/wp \
+            https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar &&
+          chmod +x /usr/local/bin/wp;
+        fi'
+  changed_when: false
+
+- name: Install WordPress core (idempotent)
+  community.docker.docker_container_exec:
+    container: inception_wordpress
+    user: www-data
+    command: >
+      sh -c '
+        cd /var/www/html &&
+        if ! wp core is-installed 2>/dev/null; then
+          wp core install
+            --url="{{ wp_url }}"
+            --title="{{ wp_title }}"
+            --admin_user="{{ wp_admin_user }}"
+            --admin_password="{{ wp_admin_password }}"
+            --admin_email="{{ wp_admin_email }}"
+            --skip-email
+        else
+          echo "already installed"
+        fi'
+  register: wp_install
+  changed_when: "'already installed' not in wp_install.stdout | default('')"
+
+- name: Create secondary WP user (editor)
+  community.docker.docker_container_exec:
+    container: inception_wordpress
+    user: www-data
+    command: >
+      sh -c '
+        cd /var/www/html &&
+        if ! wp user get "{{ wp_user_user }}" 2>/dev/null; then
+          wp user create "{{ wp_user_user }}" "{{ wp_user_email }}"
+            --role=editor
+            --user_pass="{{ wp_user_password }}"
+        else
+          echo "already exists"
+        fi'
+  register: wp_user_create
+  changed_when: "'already exists' not in wp_user_create.stdout | default('')"
