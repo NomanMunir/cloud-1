@@ -23,6 +23,8 @@ secrets/
 # Python cache (ansible)
 __pycache__/
 *.pyc
+.venv/
+.uv/
 
 # Logs
 *.log

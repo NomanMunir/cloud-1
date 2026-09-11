@@ -21,7 +21,7 @@
     - name: Check existing cert
       ansible.builtin.stat:
         path: "{{ data_dir }}/certs/fullchain.pem"
-      register: cert_stat
+      register: tls_cert_stat
 
     - name: Generate self-signed cert
       ansible.builtin.command: >
@@ -30,7 +30,7 @@
         -out    {{ data_dir }}/certs/fullchain.pem
         -days 365
         -subj "/CN={{ site_domain }}"
-      when: not cert_stat.stat.exists
+      when: not tls_cert_stat.stat.exists
       changed_when: true
 
     - name: Copy certs into named volume mount via host bind
@@ -43,9 +43,8 @@
         mode: "0640"
       loop:
         - { src: "{{ data_dir }}/certs/fullchain.pem", dest: /var/lib/docker/volumes/inception_certs/_data/fullchain.pem }
-        - { src: "{{ data_dir }}/certs/privkey.pem",   dest: /var/lib/docker/volumes/inception_certs/_data/privkey.pem }
-      when: cert_stat.stat.exists or not cert_stat.stat.exists
-      ignore_errors: true   # named volume may not exist yet on first run; app role will retry
+        - { src: "{{ data_dir }}/certs/privkey.pem", dest: /var/lib/docker/volumes/inception_certs/_data/privkey.pem }
+      failed_when: false   # named volume may not exist yet on first run; app role will retry
 
 - name: Let's Encrypt branch
   when: tls_mode == "letsencrypt"
@@ -62,9 +61,9 @@
         url: >-
           https://www.duckdns.org/update?domains={{ duckdns_subdomain }}&token={{ duckdns_token }}&ip=
         return_content: true
-      register: duckdns_resp
-      changed_when: "'OK' in duckdns_resp.content"
-      failed_when: "'OK' not in duckdns_resp.content"
+      register: tls_duckdns_resp
+      changed_when: "'OK' in tls_duckdns_resp.content"
+      failed_when: "'OK' not in tls_duckdns_resp.content"
 
     - name: Run certbot (standalone, port 80) — first issuance
       ansible.builtin.command: >
@@ -85,7 +84,7 @@
         mode: "0640"
       loop:
         - { src: "/etc/letsencrypt/live/{{ site_domain }}/fullchain.pem", dest: "{{ data_dir }}/certs/fullchain.pem" }
-        - { src: "/etc/letsencrypt/live/{{ site_domain }}/privkey.pem",   dest: "{{ data_dir }}/certs/privkey.pem" }
+        - { src: "/etc/letsencrypt/live/{{ site_domain }}/privkey.pem", dest: "{{ data_dir }}/certs/privkey.pem" }
 
     - name: Install renewal hook (reload nginx container after renew)
       ansible.builtin.copy:

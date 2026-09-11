@@ -22,7 +22,7 @@
     owner: root
     group: root
     mode: "0640"
-  notify: restart stack
+  notify: Restart stack
 
 - name: Render .env file (compose interpolation)
   ansible.builtin.template:
@@ -31,7 +31,7 @@
     owner: root
     group: root
     mode: "0600"
-  notify: restart stack
+  notify: Restart stack
 
 - name: Render nginx default vhost (WP + phpMyAdmin URL routing)
   ansible.builtin.template:
@@ -40,7 +40,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Bring up the stack
   community.docker.docker_compose_v2:
@@ -48,7 +48,7 @@
     state: present
     pull: missing
     remove_orphans: true
-  register: compose_up
+  register: app_compose_up
 
 - name: Wait for nginx to respond on HTTPS
   ansible.builtin.uri:
@@ -58,10 +58,10 @@
     validate_certs: false
     status_code: [200, 301, 302]
     return_content: false
-  register: wp_check
+  register: app_wp_check
   retries: 60
   delay: 5
-  until: wp_check.status in [200, 301, 302]
+  until: app_wp_check.status in [200, 301, 302]
 
 - name: Wait for php-fpm socket to be ready inside wordpress container
   community.docker.docker_container_exec:
@@ -83,7 +83,7 @@
         fi'
   changed_when: false
 
-- name: Install WordPress core (idempotent)
+- name: Install WordPress core (idempotent)  # noqa: yaml[line-length]
   community.docker.docker_container_exec:
     container: inception_wordpress
     user: www-data
@@ -92,15 +92,21 @@
     # flags off into separate shell commands.
     command: >
       sh -c '
-        cd /var/www/html &&
-        if ! wp core is-installed 2>/dev/null; then
-          wp core install --url="{{ wp_url }}" --title="{{ wp_title }}" --admin_user="{{ wp_admin_user }}" --admin_password="{{ wp_admin_password }}" --admin_email="{{ wp_admin_email }}" --skip-email
-        else
-          echo "already installed"
-        fi'
-  register: wp_install
+      cd /var/www/html &&
+      if ! wp core is-installed 2>/dev/null; then
+      wp core install
+      --url="{{ wp_url }}"
+      --title="{{ wp_title }}"
+      --admin_user="{{ wp_admin_user }}"
+      --admin_password="{{ wp_admin_password }}"
+      --admin_email="{{ wp_admin_email }}"
+      --skip-email;
+      else
+      echo "already installed";
+      fi'
+  register: app_wp_install
   no_log: true
-  changed_when: "'already installed' not in wp_install.stdout | default('')"
+  changed_when: "'already installed' not in app_wp_install.stdout | default('')"
 
 - name: Create secondary WP user (editor)
   community.docker.docker_container_exec:
@@ -114,6 +120,6 @@
         else
           echo "already exists"
         fi'
-  register: wp_user_create
+  register: app_wp_user_create
   no_log: true
-  changed_when: "'already exists' not in wp_user_create.stdout | default('')"
+  changed_when: "'already exists' not in app_wp_user_create.stdout | default('')"

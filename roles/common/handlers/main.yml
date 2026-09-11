@@ -1,10 +1,10 @@
 ---
-- name: reload unattended-upgrades
+- name: Reload unattended-upgrades
   ansible.builtin.service:
     name: unattended-upgrades
     state: restarted
 
-- name: restart sshd
+- name: Restart sshd
   ansible.builtin.service:
     name: ssh
     state: restarted

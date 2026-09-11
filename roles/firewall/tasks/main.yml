@@ -50,7 +50,7 @@
     owner: root
     group: root
     mode: "0755"
-  notify: apply DOCKER-USER rules
+  notify: Apply DOCKER-USER rules
 
 - name: Deploy systemd unit to apply rules after Docker starts
   ansible.builtin.template:
@@ -60,5 +60,5 @@
     group: root
     mode: "0644"
   notify:
-    - systemd daemon-reload
-    - enable docker-user-hardening
+    - Systemd daemon-reload
+    - Enable docker-user-hardening

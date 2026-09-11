@@ -34,20 +34,20 @@
     owner: root
     group: root
     mode: "0644"
-  notify: reload unattended-upgrades
+  notify: Reload unattended-upgrades
 
 - name: Ensure swap exists (2G) for low-RAM instances
   block:
     - name: Check for existing swapfile
       ansible.builtin.stat:
         path: /swapfile
-      register: swapfile_stat
+      register: common_swapfile_stat
 
     - name: Create swapfile
       ansible.builtin.command: fallocate -l 2G /swapfile
       args:
         creates: /swapfile
-      when: not swapfile_stat.stat.exists
+      when: not common_swapfile_stat.stat.exists
 
     - name: Set swapfile permissions
       ansible.builtin.file:
@@ -61,17 +61,17 @@
     # error text — that is what broke idempotency on the second run.
     - name: Read active swap devices
       ansible.builtin.command: cat /proc/swaps
-      register: active_swaps
+      register: common_active_swaps
       changed_when: false
 
     - name: Format swapfile
       ansible.builtin.command: mkswap /swapfile
-      when: not swapfile_stat.stat.exists
+      when: not common_swapfile_stat.stat.exists
       changed_when: true
 
     - name: Enable swap (current session)
       ansible.builtin.command: swapon /swapfile
-      when: "'/swapfile' not in active_swaps.stdout"
+      when: "'/swapfile' not in common_active_swaps.stdout"
       changed_when: true
 
     - name: Persist swap in fstab
@@ -99,7 +99,7 @@
         regexp: '^#?PermitRootLogin'
         line: "PermitRootLogin prohibit-password"
         validate: "/usr/sbin/sshd -t -f %s"
-      notify: restart sshd
+      notify: Restart sshd
 
     - name: Keep password authentication disabled
       ansible.builtin.lineinfile:
@@ -107,7 +107,7 @@
         regexp: '^#?PasswordAuthentication'
         line: "PasswordAuthentication no"
         validate: "/usr/sbin/sshd -t -f %s"
-      notify: restart sshd
+      notify: Restart sshd
 
     - name: Drop cloud-init SSH overrides that re-disable root
       ansible.builtin.copy:
@@ -118,4 +118,4 @@
         content: |
           PermitRootLogin prohibit-password
           PasswordAuthentication no
-      notify: restart sshd
+      notify: Restart sshd

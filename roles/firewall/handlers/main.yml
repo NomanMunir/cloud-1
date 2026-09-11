@@ -1,14 +1,14 @@
 ---
-- name: systemd daemon-reload
+- name: Systemd daemon-reload
   ansible.builtin.systemd:
     daemon_reload: true
 
-- name: enable docker-user-hardening
+- name: Enable docker-user-hardening
   ansible.builtin.systemd:
     name: docker-user-hardening.service
     enabled: true
     state: started
 
-- name: apply DOCKER-USER rules
+- name: Apply DOCKER-USER rules
   ansible.builtin.command: /usr/local/sbin/docker-user-hardening.sh
   changed_when: true

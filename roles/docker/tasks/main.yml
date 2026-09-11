@@ -56,9 +56,9 @@
 
 - name: Verify docker compose plugin works
   ansible.builtin.command: docker compose version
-  register: compose_check
+  register: docker_compose_check
   changed_when: false
 
 - name: Show compose version
   ansible.builtin.debug:
-    var: compose_check.stdout
+    var: docker_compose_check.stdout
