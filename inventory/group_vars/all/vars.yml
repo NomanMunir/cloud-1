@@ -43,7 +43,7 @@ app_network_name: "cloud1_network"
 
 # Domain & TLS Configuration
 # Replace with your public IP, domain, or DuckDNS domain (e.g. "myblog.duckdns.org")
-server_domain: "localhost"
+server_domain: "192.168.56.101"
 server_admin_email: "admin@example.com"
 tls_cert_file: "{{ app_certs_dir }}/server.crt"
 tls_key_file: "{{ app_certs_dir }}/server.key"
