@@ -56,21 +56,23 @@
         group: root
         mode: "0600"
 
+    # mkswap refuses to touch a mounted swapfile and swapon rejects a second
+    # activation, so gate both on the real state instead of parsing their
+    # error text — that is what broke idempotency on the second run.
+    - name: Read active swap devices
+      ansible.builtin.command: cat /proc/swaps
+      register: active_swaps
+      changed_when: false
+
     - name: Format swapfile
       ansible.builtin.command: mkswap /swapfile
-      register: mkswap_result
-      changed_when: "'Setting up swapspace' in mkswap_result.stdout"
-      failed_when:
-        - mkswap_result.rc != 0
-        - "'already' not in mkswap_result.stderr"
+      when: not swapfile_stat.stat.exists
+      changed_when: true
 
     - name: Enable swap (current session)
       ansible.builtin.command: swapon /swapfile
-      register: swapon_result
-      changed_when: swapon_result.rc == 0
-      failed_when:
-        - swapon_result.rc != 0
-        - "'already' not in swapon_result.stderr | default('')"
+      when: "'/swapfile' not in active_swaps.stdout"
+      changed_when: true
 
     - name: Persist swap in fstab
       ansible.posix.mount:

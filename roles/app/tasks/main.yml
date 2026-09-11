@@ -87,21 +87,19 @@
   community.docker.docker_container_exec:
     container: inception_wordpress
     user: www-data
+    # Keep each wp invocation on a single line: in a folded (>) block, lines
+    # indented deeper than the first keep their newlines, which splits the
+    # flags off into separate shell commands.
     command: >
       sh -c '
         cd /var/www/html &&
         if ! wp core is-installed 2>/dev/null; then
-          wp core install
-            --url="{{ wp_url }}"
-            --title="{{ wp_title }}"
-            --admin_user="{{ wp_admin_user }}"
-            --admin_password="{{ wp_admin_password }}"
-            --admin_email="{{ wp_admin_email }}"
-            --skip-email
+          wp core install --url="{{ wp_url }}" --title="{{ wp_title }}" --admin_user="{{ wp_admin_user }}" --admin_password="{{ wp_admin_password }}" --admin_email="{{ wp_admin_email }}" --skip-email
         else
           echo "already installed"
         fi'
   register: wp_install
+  no_log: true
   changed_when: "'already installed' not in wp_install.stdout | default('')"
 
 - name: Create secondary WP user (editor)
@@ -112,11 +110,10 @@
       sh -c '
         cd /var/www/html &&
         if ! wp user get "{{ wp_user_user }}" 2>/dev/null; then
-          wp user create "{{ wp_user_user }}" "{{ wp_user_email }}"
-            --role=editor
-            --user_pass="{{ wp_user_password }}"
+          wp user create "{{ wp_user_user }}" "{{ wp_user_email }}" --role=editor --user_pass="{{ wp_user_password }}"
         else
           echo "already exists"
         fi'
   register: wp_user_create
+  no_log: true
   changed_when: "'already exists' not in wp_user_create.stdout | default('')"
