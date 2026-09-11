@@ -4,8 +4,8 @@
 
 .PHONY: all help setup-vault ping check dry-run deploy test clean
 
-ANSIBLE_PLAYBOOK := $(shell which ansible-playbook 2>/dev/null || echo "uvx --from ansible-core ansible-playbook")
-ANSIBLE          := $(shell which ansible 2>/dev/null || echo "uvx --from ansible-core ansible")
+ANSIBLE_PLAYBOOK := $(shell which ansible-playbook 2>/dev/null || echo "uvx --from ansible ansible-playbook")
+ANSIBLE          := $(shell which ansible 2>/dev/null || echo "uvx --from ansible ansible")
 
 all: help
 

@@ -1,0 +1,4 @@
+---
+# Ansible Galaxy collections requirements
+collections:
+  - name: community.general

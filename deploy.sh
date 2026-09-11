@@ -37,7 +37,7 @@ if command -v ansible-playbook >/dev/null 2>&1; then
     ANSIBLE_BIN="ansible-playbook"
 elif command -v uvx >/dev/null 2>&1; then
     echo "[+] Using uvx to run ansible-playbook on-the-fly..."
-    ANSIBLE_BIN="uvx --from ansible-core ansible-playbook"
+    ANSIBLE_BIN="uvx --from ansible ansible-playbook"
 else
     echo "[-] Error: 'ansible-playbook' command not found."
     echo "    Please install Ansible or install uv (curl -LsSf https://astral.sh/uv/install.sh | sh)"
