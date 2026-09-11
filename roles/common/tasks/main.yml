@@ -57,9 +57,6 @@
         group: root
         mode: "0600"
 
-    # mkswap refuses to touch a mounted swapfile and swapon rejects a second
-    # activation, so gate both on the real state instead of parsing their
-    # error text — that is what broke idempotency on the second run.
     - name: Read active swap devices
       ansible.builtin.command: cat /proc/swaps
       register: common_active_swaps

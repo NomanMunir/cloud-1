@@ -1,6 +1,4 @@
-#cloud-config
-# Cloud-init for local Multipass test VM. Sets up the same baseline
-# the subject expects from a "fresh Ubuntu 22.04 + SSH + Python" host.
+---
 users:
   - name: ubuntu
     sudo: ALL=(ALL) NOPASSWD:ALL
