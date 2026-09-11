@@ -1,0 +1,52 @@
+---
+# ==============================================================================
+# Role: tls - Tasks
+# Generates self-signed TLS certificates with SAN for domain and IP
+# ==============================================================================
+
+- name: Create TLS certificates directory
+  ansible.builtin.file:
+    path: "{{ app_certs_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Deploy OpenSSL configuration with SAN
+  ansible.builtin.template:
+    src: openssl.cnf.j2
+    dest: "{{ app_certs_dir }}/openssl.cnf"
+    mode: '0600'
+  register: openssl_cnf_status
+
+- name: Check if TLS certificate and key already exist
+  ansible.builtin.stat:
+    path: "{{ tls_cert_file }}"
+  register: cert_stat
+
+- name: Check if TLS key exists
+  ansible.builtin.stat:
+    path: "{{ tls_key_file }}"
+  register: key_stat
+
+- name: Generate RSA 4096 private key and self-signed certificate
+  ansible.builtin.command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:4096
+    -keyout {{ tls_key_file }}
+    -out {{ tls_cert_file }}
+    -config {{ app_certs_dir }}/openssl.cnf
+  when: not cert_stat.stat.exists or not key_stat.stat.exists or openssl_cnf_status.changed
+
+- name: Set secure permissions on private key
+  ansible.builtin.file:
+    path: "{{ tls_key_file }}"
+    mode: '0600'
+    owner: root
+    group: root
+
+- name: Set secure permissions on public certificate
+  ansible.builtin.file:
+    path: "{{ tls_cert_file }}"
+    mode: '0644'
+    owner: root
+    group: root

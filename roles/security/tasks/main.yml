@@ -1,0 +1,45 @@
+---
+# ==============================================================================
+# Role: security - Tasks
+# Configures UFW firewall to strictly allow only ports 22, 80, and 443
+# All other incoming ports are blocked
+# ==============================================================================
+
+- name: Set UFW default incoming policy to deny
+  community.general.ufw:
+    direction: incoming
+    default: deny
+
+- name: Set UFW default outgoing policy to allow
+  community.general.ufw:
+    direction: outgoing
+    default: allow
+
+- name: Allow defined incoming ports (SSH 22, HTTP 80, HTTPS 443)
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ ufw_rules }}"
+
+- name: Explicitly deny database external port 3306
+  community.general.ufw:
+    rule: deny
+    port: "3306"
+    proto: tcp
+    comment: "Block direct external database access"
+
+- name: Enable UFW firewall and ensure it is active
+  community.general.ufw:
+    state: enabled
+  notify: Reload UFW
+
+- name: Get UFW status for verification
+  ansible.builtin.command: ufw status verbose
+  register: ufw_status_output
+  changed_when: false
+
+- name: Display active UFW rules
+  ansible.builtin.debug:
+    var: ufw_status_output.stdout_lines

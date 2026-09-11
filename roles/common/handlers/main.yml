@@ -1,0 +1,11 @@
+---
+# ==============================================================================
+# Role: common - Handlers
+# ==============================================================================
+
+- name: Restart systemd-timesyncd
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    state: restarted
+    enabled: true
+  ignore_errors: true

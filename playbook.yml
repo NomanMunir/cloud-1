@@ -1,0 +1,59 @@
+---
+# ==============================================================================
+# Cloud-1: Automated Deployment of Inception
+# Master Playbook
+# ==============================================================================
+
+- name: Deploy Cloud-1 Inception Infrastructure
+  hosts: webservers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Verify target OS is Ubuntu
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'Ubuntu'
+          - ansible_distribution_major_version | int >= 20
+        fail_msg: "Cloud-1 requires Ubuntu 20.04 or 22.04 LTS. Detected: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+        success_msg: "Target OS verified: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Validate that vault secrets are loaded
+      ansible.builtin.assert:
+        that:
+          - vault_db_root_password is defined
+          - vault_db_password is defined
+          - vault_db_root_password != "CHANGE_ME_ROOT_PASSWORD_12345"
+          - vault_db_password != "CHANGE_ME_WP_PASSWORD_12345"
+        fail_msg: "Secrets in vault.yml must be configured before deployment. Please update inventory/group_vars/all/vault.yml"
+        success_msg: "Vault credentials verified."
+
+  roles:
+    - role: common
+      tags: [common, system]
+
+    - role: security
+      tags: [security, ufw, firewall]
+
+    - role: docker
+      tags: [docker]
+
+    - role: tls
+      tags: [tls, ssl]
+
+    - role: app
+      tags: [app, inception, wordpress]
+
+  post_tasks:
+    - name: Final deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================================="
+          - "  Cloud-1 Deployment Succeeded!"
+          - "  Host: {{ inventory_hostname }} ({{ ansible_host | default(inventory_hostname) }})"
+          - "  Domain: {{ server_domain }}"
+          - "  WordPress URL: https://{{ server_domain }}/"
+          - "  phpMyAdmin URL: https://{{ server_domain }}/phpmyadmin/"
+          - "  HTTP (80) -> HTTPS (443) 301 Redirection: ENABLED"
+          - "  UFW Firewall: Active (Only ports 22, 80, 443 accessible)"
+          - "=========================================================="

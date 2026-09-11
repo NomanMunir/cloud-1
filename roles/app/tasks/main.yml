@@ -1,0 +1,90 @@
+---
+# ==============================================================================
+# Role: app - Tasks
+# Deploys Docker Compose stack, configures Nginx, and starts services
+# ==============================================================================
+
+- name: Create application directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ app_dir }}"
+    - "{{ app_nginx_dir }}"
+    - "{{ app_nginx_dir }}/conf.d"
+
+- name: Deploy .env configuration
+  ansible.builtin.template:
+    src: .env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart Docker Compose Stack
+
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ app_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Docker Compose Stack
+
+- name: Deploy Nginx configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ app_nginx_dir }}/nginx.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload Nginx
+
+- name: Deploy Nginx virtual host configuration
+  ansible.builtin.template:
+    src: default.conf.j2
+    dest: "{{ app_nginx_dir }}/conf.d/default.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload Nginx
+
+- name: Pull Docker Compose container images
+  ansible.builtin.command: docker compose pull
+  args:
+    chdir: "{{ app_dir }}"
+  register: docker_pull_result
+  changed_when: "'Downloaded' in docker_pull_result.stdout or 'Pulling' in docker_pull_result.stdout"
+
+- name: Start Docker Compose stack
+  ansible.builtin.command: docker compose up -d --remove-orphans
+  args:
+    chdir: "{{ app_dir }}"
+  register: docker_up_result
+  changed_when: "'Started' in docker_up_result.stdout or 'Created' in docker_up_result.stdout or 'Recreated' in docker_up_result.stdout"
+
+- name: Wait for port 80 to become available
+  ansible.builtin.wait_for:
+    port: 80
+    host: 127.0.0.1
+    timeout: 60
+
+- name: Wait for port 443 to become available
+  ansible.builtin.wait_for:
+    port: 443
+    host: 127.0.0.1
+    timeout: 60
+
+- name: Check container statuses
+  ansible.builtin.command: docker compose ps --format json
+  args:
+    chdir: "{{ app_dir }}"
+  register: compose_ps_output
+  changed_when: false
+
+- name: Display running containers
+  ansible.builtin.debug:
+    var: compose_ps_output.stdout_lines

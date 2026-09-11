@@ -1,0 +1,27 @@
+# Ansible Vault and Secrets
+inventory/group_vars/all/vault.yml
+*.vault_pass
+.vault_pass*
+*.key
+*.pem
+*.crt
+*.csr
+
+# Python & uv
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+
+# Ansible retry and temp files
+*.retry
+.ansible/
+*.log
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

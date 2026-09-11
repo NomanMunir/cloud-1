@@ -1,0 +1,114 @@
+services:
+  # ----------------------------------------------------------------------------
+  # Database Service (MariaDB)
+  # Isolated in internal docker network with no exposed host port
+  # ----------------------------------------------------------------------------
+  db:
+    image: {{ mariadb_image }}
+    container_name: mariadb
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - cloud1_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ----------------------------------------------------------------------------
+  # WordPress Application Service
+  # ----------------------------------------------------------------------------
+  wordpress:
+    image: {{ wordpress_image }}
+    container_name: wordpress
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', 'https://${SERVER_DOMAIN}');
+        define('WP_SITEURL', 'https://${SERVER_DOMAIN}');
+        define('FORCE_SSL_ADMIN', true);
+        if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            $$_SERVER['HTTPS'] = 'on';
+        }
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - cloud1_net
+
+  # ----------------------------------------------------------------------------
+  # phpMyAdmin Service
+  # ----------------------------------------------------------------------------
+  phpmyadmin:
+    image: {{ phpmyadmin_image }}
+    container_name: phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 0
+      PMA_ABSOLUTE_URI: https://${SERVER_DOMAIN}/phpmyadmin/
+    volumes:
+      - phpmyadmin_sessions:/sessions
+    networks:
+      - cloud1_net
+
+  # ----------------------------------------------------------------------------
+  # Nginx Reverse Proxy & TLS Termination
+  # The ONLY service exposing ports to the outside (80, 443)
+  # ----------------------------------------------------------------------------
+  nginx:
+    image: {{ nginx_image }}
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - {{ app_nginx_dir }}/nginx.conf:/etc/nginx/nginx.conf:ro
+      - {{ app_nginx_dir }}/conf.d:/etc/nginx/conf.d:ro
+      - {{ app_certs_dir }}:/etc/nginx/certs:ro
+    depends_on:
+      - wordpress
+      - phpmyadmin
+    networks:
+      - cloud1_net
+
+# ------------------------------------------------------------------------------
+# Persistent Volumes (Preserve data across reboots and container recreation)
+# ------------------------------------------------------------------------------
+volumes:
+  mariadb_data:
+    driver: local
+  wordpress_data:
+    driver: local
+  phpmyadmin_sessions:
+    driver: local
+
+# ------------------------------------------------------------------------------
+# Internal Network (Strict isolation between internal containers and host)
+# ------------------------------------------------------------------------------
+networks:
+  cloud1_net:
+    name: {{ app_network_name }}
+    driver: bridge

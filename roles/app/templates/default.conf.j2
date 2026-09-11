@@ -1,0 +1,108 @@
+# ==============================================================================
+# HTTP (Port 80) -> HTTPS (Port 443) Redirection
+# All incoming HTTP traffic is permanently redirected (301) to HTTPS
+# ==============================================================================
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name {{ server_domain }} localhost _;
+
+    # Permanent redirect to HTTPS
+    return 301 https://$host$request_uri;
+}
+
+# ==============================================================================
+# HTTPS (Port 443) - Reverse Proxy and Routing
+# Routes / to WordPress and /phpmyadmin/ to phpMyAdmin
+# ==============================================================================
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name {{ server_domain }} localhost _;
+
+    # TLS / SSL Certificates
+    ssl_certificate /etc/nginx/certs/server.crt;
+    ssl_certificate_key /etc/nginx/certs/server.key;
+
+    # Secure TLS Protocols & Ciphers (TLSv1.2 & TLSv1.3 only)
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+
+    # Security Headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+
+    # --------------------------------------------------------------------------
+    # Route: phpMyAdmin (/phpmyadmin and /phpmyadmin/)
+    # --------------------------------------------------------------------------
+    location = /phpmyadmin {
+        return 301 /phpmyadmin/;
+    }
+
+    location /phpmyadmin/ {
+        proxy_pass http://phpmyadmin:80/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_redirect / /phpmyadmin/;
+
+        # Performance & Buffer Settings
+        proxy_buffering on;
+        proxy_buffers 16 16k;
+        proxy_buffer_size 16k;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 300s;
+    }
+
+    # --------------------------------------------------------------------------
+    # Route: WordPress (Root /)
+    # --------------------------------------------------------------------------
+    location / {
+        proxy_pass http://wordpress:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+
+        # Performance & Buffer Settings
+        proxy_buffering on;
+        proxy_buffers 16 16k;
+        proxy_buffer_size 16k;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 300s;
+    }
+}
+
+# ==============================================================================
+# Optional Subdomain Routing (e.g. pma.domain.com -> phpMyAdmin)
+# ==============================================================================
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name pma.{{ server_domain }} phpmyadmin.{{ server_domain }};
+
+    ssl_certificate /etc/nginx/certs/server.crt;
+    ssl_certificate_key /etc/nginx/certs/server.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://phpmyadmin:80/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+    }
+}

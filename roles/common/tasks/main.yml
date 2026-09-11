@@ -1,0 +1,20 @@
+---
+# ==============================================================================
+# Role: common - Tasks
+# ==============================================================================
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install required system packages
+  ansible.builtin.apt:
+    name: "{{ system_packages }}"
+    state: present
+    update_cache: false
+
+- name: Set system timezone to {{ system_timezone }}
+  community.general.timezone:
+    name: "{{ system_timezone }}"
+  notify: Restart systemd-timesyncd

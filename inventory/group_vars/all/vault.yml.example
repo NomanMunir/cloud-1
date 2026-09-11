@@ -1,0 +1,23 @@
+---
+# ==============================================================================
+# Cloud-1 Vault Secrets Template (vault.yml.example)
+#
+# IMPORTANT:
+# 1. Copy this file to `inventory/group_vars/all/vault.yml`:
+#      cp inventory/group_vars/all/vault.yml.example inventory/group_vars/all/vault.yml
+#      (or run: make setup-vault)
+# 2. Set strong random passwords (e.g. using `openssl rand -base64 24`)
+# 3. Optional: Encrypt vault.yml using Ansible Vault for maximum security:
+#      ansible-vault encrypt inventory/group_vars/all/vault.yml
+#
+# The actual `vault.yml` is excluded by .gitignore to prevent committing secrets!
+# ==============================================================================
+
+# MariaDB Root & Application User Passwords
+vault_db_root_password: "CHANGE_ME_ROOT_PASSWORD_12345"
+vault_db_password: "CHANGE_ME_WP_PASSWORD_12345"
+
+# WordPress Initial Admin Account
+vault_wp_admin_user: "cloud1_admin"
+vault_wp_admin_password: "CHANGE_ME_ADMIN_PASSWORD_12345"
+vault_wp_admin_email: "admin@example.com"

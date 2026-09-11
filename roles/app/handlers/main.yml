@@ -1,0 +1,15 @@
+---
+# ==============================================================================
+# Role: app - Handlers
+# ==============================================================================
+
+- name: Restart Docker Compose Stack
+  ansible.builtin.command: docker compose up -d --force-recreate
+  args:
+    chdir: "{{ app_dir }}"
+
+- name: Reload Nginx
+  ansible.builtin.command: docker compose exec nginx nginx -s reload
+  args:
+    chdir: "{{ app_dir }}"
+  ignore_errors: true
