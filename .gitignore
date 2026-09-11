@@ -1,38 +1,50 @@
-# Ansible
+# Ansible & Vault Secrets
 *.retry
-.vault_pass
+.vault_pass*
+*.vault_pass
 .vault_password
+group_vars/all/vault.yml.unencrypted
+
+# Certificates & Keys
 *.pem
 *.key
+*.crt
+*.csr
+*.cer
 !**/templates/*.key.j2
 
-# Secrets
-group_vars/all/vault.yml.unencrypted
-inventory/hosts.local.yml
+# Environment & Local Secrets
 .env
-.env.local
+.env.*
+!.env.example
 secrets/
+inventory/hosts.local.yml
+inventory/hosts.local.ini
 
-# OS / editor
-.DS_Store
-*.swp
-*.swo
-.idea/
-.vscode/
-
-# Python cache (ansible)
+# Python, Virtual Environments & uv
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .venv/
 .uv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Logs
+# Ansible Runtime & Fact Cache
 *.log
+.ansible/
+.ansible_facts_cache/
+.cache/
 
-# Multipass / local VM state
+# Multipass / Local VM State
 .multipass/
 
-# Don't commit subject PDF? — keep it for now since school workflow expects repo to be self-contained
-
-# Ansible fact cache (generated)
-.ansible_facts_cache/
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
