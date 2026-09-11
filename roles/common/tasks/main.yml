@@ -9,6 +9,7 @@
       - ufw
       - python3-pip
       - python3-docker
+      - python3-debian
       - unattended-upgrades
       - chrony
       - htop
