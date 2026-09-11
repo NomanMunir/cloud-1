@@ -48,8 +48,11 @@ server {
     index index.php index.html;
     client_max_body_size 256M;
 
-    # phpMyAdmin reverse proxy
-    location {{ pma_path }}/ {
+    # phpMyAdmin reverse proxy.
+    # ^~ is required: without it the `location ~ \.php$` regex below wins for
+    # /phpmyadmin/index.php and hands the request to WordPress's php-fpm,
+    # which answers "File not found."
+    location ^~ {{ pma_path }}/ {
         proxy_pass http://phpmyadmin_upstream/;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
