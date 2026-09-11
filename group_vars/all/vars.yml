@@ -3,7 +3,7 @@
 # Azure assigns a real, resolvable FQDN to the VM's public IP — no dynamic-DNS
 # provider needed, and Let's Encrypt issues against it directly.
 site_domain: "cloud1-mkhan.indiasouthcentral.cloudapp.azure.com"
-admin_email: "mehsan@g137.io"
+admin_email: "mail@nmunir.com"
 
 # DNS provider: azure (static FQDN, nothing to update) | duckdns
 dns_provider: "azure"
