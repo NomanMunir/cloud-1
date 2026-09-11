@@ -57,6 +57,7 @@
         state: present
 
     - name: Update DuckDNS A record (point domain at this host)
+      when: dns_provider == "duckdns"
       ansible.builtin.uri:
         url: >-
           https://www.duckdns.org/update?domains={{ duckdns_subdomain }}&token={{ duckdns_token }}&ip=

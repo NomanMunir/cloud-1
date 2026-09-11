@@ -1,11 +1,20 @@
 ---
 # Site identity
-site_domain: "{{ duckdns_subdomain }}.duckdns.org"
+# Azure assigns a real, resolvable FQDN to the VM's public IP — no dynamic-DNS
+# provider needed, and Let's Encrypt issues against it directly.
+site_domain: "cloud1-mkhan.indiasouthcentral.cloudapp.azure.com"
 admin_email: "mehsan@g137.io"
 
-# DuckDNS (set duckdns_subdomain and vault_duckdns_token)
+# DNS provider: azure (static FQDN, nothing to update) | duckdns
+dns_provider: "azure"
+
+# DuckDNS — only used when dns_provider == "duckdns"
 duckdns_subdomain: "cloud1-mkhan"
-duckdns_token: "{{ vault_duckdns_token }}"
+duckdns_token: "{{ vault_duckdns_token | default('') }}"
+
+# Root SSH for evaluation defense (key-only, never password)
+enable_root_ssh: true
+root_ssh_public_key_file: "~/.ssh/cloud1_azure.pub"
 
 # TLS mode: letsencrypt | selfsigned
 tls_mode: "letsencrypt"
