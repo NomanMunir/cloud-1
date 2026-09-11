@@ -31,3 +31,6 @@ __pycache__/
 .multipass/
 
 # Don't commit subject PDF? — keep it for now since school workflow expects repo to be self-contained
+
+# Ansible fact cache (generated)
+.ansible_facts_cache/
