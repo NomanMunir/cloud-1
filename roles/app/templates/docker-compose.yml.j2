@@ -1,11 +1,4 @@
 ---
-# Cloud-1 — rendered by Ansible. Do not edit on the host.
-# Subject rules satisfied:
-#   - 1 process = 1 container (4 services)
-#   - restart: unless-stopped (auto-restart on reboot)
-#   - named volumes (data persists)
-#   - mariadb on backend network only (DB not reachable from internet)
-#   - only nginx exposes ports (80/443)
 
 name: inception
 
@@ -14,7 +7,7 @@ networks:
     name: {{ net_frontend }}
   backend:
     name: {{ net_backend }}
-    internal: true   # no outbound internet, no host exposure
+    internal: true
 
 volumes:
   db_data:
