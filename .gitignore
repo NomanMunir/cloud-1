@@ -40,6 +40,9 @@ __pycache__/
 # Multipass / Local VM State
 .multipass/
 
+# Files not meant for submission
+not_submit/
+
 # OS & Editor Files
 .DS_Store
 Thumbs.db
